@@ -9,3 +9,13 @@ next-env.d.ts
 .superpowers/
 .agents/
 .claude/
+
+# Internal AI-tooling scaffolding — not for the public/submission repo
+skills-lock.json
+docs/superpowers/
+
+# Stale duplicate of the deck — the canonical copy is public/pitch-deck.html
+docs/pitch-deck.html
+
+# Internal code-review report — kept local, not for the submission repo
+docs/REPOSITORY_REVIEW.md

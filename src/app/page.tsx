@@ -259,7 +259,16 @@ export default function LandingPage() {
             <LogoIcon size={20} />
             <span className="text-sm font-semibold text-white font-[family-name:var(--font-space-grotesk)]">WebVerse</span>
           </div>
-          <p className="text-xs text-[#6B6B76]">Built with AI. For engineers, by an engineer.</p>
+          <div className="flex items-center gap-4">
+            <a
+              href="/deck"
+              className="text-xs text-[#6B6B76] hover:text-[#A7A7B2] transition-colors"
+            >
+              Pitch Deck
+            </a>
+            <span className="text-[#3A3A42]">·</span>
+            <p className="text-xs text-[#6B6B76]">Built with AI. For engineers, by an engineer.</p>
+          </div>
         </div>
       </footer>
       </div>

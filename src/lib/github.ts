@@ -14,6 +14,18 @@ interface GitHubRepo {
   updated_at: string;
 }
 
+// Encode each path segment so untrusted owner/repo/branch/path values can never
+// break out of the intended GitHub REST path or inject query parameters.
+const enc = encodeURIComponent;
+
+function ghHeaders(accessToken: string) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/vnd.github.v3+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
 export async function fetchUserRepos(accessToken: string): Promise<GitHubRepo[]> {
   const repos: GitHubRepo[] = [];
   let page = 1;
@@ -22,12 +34,7 @@ export async function fetchUserRepos(accessToken: string): Promise<GitHubRepo[]>
   while (true) {
     const res = await fetch(
       `https://api.github.com/user/repos?per_page=${perPage}&page=${page}&sort=updated&type=all`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
+      { headers: ghHeaders(accessToken) }
     );
 
     if (!res.ok) break;
@@ -47,12 +54,10 @@ export async function fetchDefaultBranch(
   owner: string,
   repo: string
 ): Promise<string> {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/vnd.github.v3+json",
-    },
-  });
+  const res = await fetch(
+    `https://api.github.com/repos/${enc(owner)}/${enc(repo)}`,
+    { headers: ghHeaders(accessToken) }
+  );
 
   if (!res.ok) return "main";
 
@@ -60,26 +65,27 @@ export async function fetchDefaultBranch(
   return data.default_branch || "main";
 }
 
+export interface RepoTree {
+  tree: { path: string; type: string; size?: number }[];
+  /** GitHub truncates very large trees; when true the analysis saw only a partial tree. */
+  truncated: boolean;
+}
+
 export async function fetchRepoTree(
   accessToken: string,
   owner: string,
   repo: string,
   branch: string
-): Promise<{ path: string; type: string; size?: number }[]> {
+): Promise<RepoTree> {
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    }
+    `https://api.github.com/repos/${enc(owner)}/${enc(repo)}/git/trees/${enc(branch)}?recursive=1`,
+    { headers: ghHeaders(accessToken) }
   );
 
-  if (!res.ok) return [];
+  if (!res.ok) return { tree: [], truncated: false };
 
   const data = await res.json();
-  return data.tree || [];
+  return { tree: data.tree || [], truncated: Boolean(data.truncated) };
 }
 
 export async function fetchFileContent(
@@ -89,14 +95,12 @@ export async function fetchFileContent(
   path: string,
   branch: string
 ): Promise<string | null> {
+  // Split the file path into segments and encode each one so subdirectories
+  // (the `/` separators) survive while every segment is individually escaped.
+  const safePath = path.split("/").map(enc).join("/");
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    }
+    `https://api.github.com/repos/${enc(owner)}/${enc(repo)}/contents/${safePath}?ref=${enc(branch)}`,
+    { headers: ghHeaders(accessToken) }
   );
 
   if (!res.ok) return null;

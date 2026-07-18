@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { Logo } from "@/components/logo";
 import { UserMenu } from "@/components/user-menu";
+import { useAnalysisStore } from "@/stores/analysis-store";
 
 const NAV_ITEMS = [
   { label: "Overview", icon: LayoutDashboard, path: "" },
@@ -28,6 +29,29 @@ export default function BrainLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const basePath = `/brain/${params.owner}/${params.repo}`;
+  const { results, setResults } = useAnalysisStore();
+
+  // Rehydrate the in-memory store from the persisted analysis after a refresh
+  // or a direct navigation, so the Brain views (and chat) keep their context.
+  useEffect(() => {
+    if (results) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/analysis/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.results) setResults(data.results);
+      } catch {
+        /* offline / not analyzed yet — views show their empty state */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.owner, params.repo, results, setResults]);
 
   return (
     <div className="min-h-screen flex">
