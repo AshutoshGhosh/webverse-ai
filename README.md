@@ -17,6 +17,10 @@ Point WebVerse at a repo and it maps the **architecture**, extracts **dependenci
 ![Build](https://img.shields.io/badge/build-passing-22c55e)
 ![License](https://img.shields.io/badge/license-MIT-6b7280)
 
+<br/>
+
+### [🚀 Live Demo](https://webverse-ai.vercel.app/) · [📊 Pitch Deck](https://webverse-ai.vercel.app/deck)
+
 </div>
 
 ---
@@ -99,7 +103,6 @@ Built with a production mindset, not just a demo:
 - **Security headers** — HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
 - **CI** — typecheck, lint, `npm audit`, and build run on every push (`.github/workflows/ci.yml`).
 
-> 📋 A full self-review of the codebase — findings, severities, and remediation — lives in **[`docs/REPOSITORY_REVIEW.md`](docs/REPOSITORY_REVIEW.md)**.
 
 ---
 
@@ -126,6 +129,7 @@ cp .env.local.example .env.local
 | `OPENAI_API_KEY` | OpenAI API key |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth app credentials |
 | `GITHUB_OAUTH_SCOPES` | *(optional)* set to `repo read:user` to analyze **private** repos |
+| `OPENAI_MODEL` | *(optional)* chat/analysis model, default `gpt-4o` (must support structured outputs + streaming) |
 
 ### 3 · Database
 Run the migration in the Supabase **SQL Editor** (creates the RLS-protected `analyses` table):
@@ -223,6 +227,6 @@ npm run lint      # ESLint
 
 <div align="center">
 
-**Built with AI. For engineers, by engineers.** · MIT License
+**Built with AI and love. For engineers, by an engineer.** · MIT License
 
 </div>
