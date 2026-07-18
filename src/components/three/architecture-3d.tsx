@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, Line } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -15,10 +15,20 @@ const NODE_COLORS: Record<ArchitectureNode["type"], string> = {
   config: "#6B6B76",
 };
 
+interface LayerRing {
+  name: string;
+  y: number;
+  radius: number;
+}
+
 /** Stack nodes into layered rings — each architecture layer is a ring along the Y axis. */
-function useLayout(data: ArchitectureData) {
+function useLayout(data: ArchitectureData): {
+  positions: Map<string, THREE.Vector3>;
+  rings: LayerRing[];
+} {
   return useMemo(() => {
     const positions = new Map<string, THREE.Vector3>();
+    const rings: LayerRing[] = [];
 
     const byLayer = new Map<string, ArchitectureNode[]>();
     for (const node of data.nodes) {
@@ -42,6 +52,7 @@ function useLayout(data: ArchitectureData) {
       const arr = byLayer.get(layer)!;
       const y = totalH / 2 - li * gapY;
       const radius = Math.max(2.4, arr.length * 0.6);
+      rings.push({ name: layer, y, radius });
       arr.forEach((node, ni) => {
         const angle = (ni / arr.length) * Math.PI * 2;
         positions.set(
@@ -51,8 +62,21 @@ function useLayout(data: ArchitectureData) {
       });
     });
 
-    return positions;
+    return { positions, rings };
   }, [data]);
+}
+
+/** Reads the user's OS "reduce motion" preference so we can disable auto-rotation. */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
 }
 
 function GraphNode({
@@ -178,8 +202,15 @@ function Edges({
 }
 
 function Scene({ data }: { data: ArchitectureData }) {
-  const positions = useLayout(data);
+  const { positions, rings } = useLayout(data);
   const [hovered, setHovered] = useState<string | null>(null);
+
+  // Auto-rotate for the "hero" feel, but stop the moment the user grabs the
+  // scene (so it doesn't fight their drag), and never rotate if the user has
+  // asked the OS to reduce motion.
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [userInteracted, setUserInteracted] = useState(false);
+  const autoRotate = !prefersReducedMotion && !userInteracted;
 
   const connectedIds = useMemo(() => {
     if (!hovered) return new Set<string>();
@@ -198,6 +229,23 @@ function Scene({ data }: { data: ArchitectureData }) {
       <pointLight position={[-10, -10, -10]} intensity={20} color="#8B5CF6" />
 
       <Edges data={data} positions={positions} hovered={hovered} />
+
+      {/* Layer labels — a dim mono tag anchored beside each ring so the
+          "layered architecture" reads clearly in 3D. */}
+      {rings.map((ring) => (
+        <Html
+          key={ring.name}
+          position={[-(ring.radius + 1.4), ring.y, 0]}
+          center
+          distanceFactor={13}
+          style={{ pointerEvents: "none" }}
+          zIndexRange={[5, 0]}
+        >
+          <div className="whitespace-nowrap font-[family-name:var(--font-jetbrains-mono),monospace] text-[10px] uppercase tracking-[0.22em] text-[#6B6B76]">
+            {ring.name}
+          </div>
+        </Html>
+      ))}
 
       {data.nodes.map((node) => {
         const pos = positions.get(node.id);
@@ -218,10 +266,11 @@ function Scene({ data }: { data: ArchitectureData }) {
         makeDefault
         enableDamping
         dampingFactor={0.08}
-        autoRotate
+        autoRotate={autoRotate}
         autoRotateSpeed={0.4}
         minDistance={4}
         maxDistance={40}
+        onStart={() => setUserInteracted(true)}
       />
 
       <EffectComposer>
